@@ -7,6 +7,7 @@ from document_archive import (
     add_doc, get_doc, extract_text, search, list_docs, list_collections,
     delete_doc, export_collection, bulk_import, stats, get_db,
     extract_text_from_bytes, _infer_title, _word_count, _sha256,
+    _validate_collection, _fts_quote,
 )
 
 
@@ -386,3 +387,106 @@ def test_db_schema(tmp_path):
     assert "documents" in tables
     assert "documents_fts" in tables
     assert "collections" in tables
+
+
+# ---------------------------------------------------------------------------
+# Production-level: input validation
+# ---------------------------------------------------------------------------
+
+def test_validate_collection_valid():
+    _validate_collection("default")
+    _validate_collection("my-collection")
+    _validate_collection("Col_2024")
+    _validate_collection("a")
+
+
+def test_validate_collection_invalid():
+    with pytest.raises(ValueError):
+        _validate_collection("../../etc/passwd")
+    with pytest.raises(ValueError):
+        _validate_collection("bad/name")
+    with pytest.raises(ValueError):
+        _validate_collection("bad name")
+    with pytest.raises(ValueError):
+        _validate_collection("")
+    with pytest.raises(ValueError):
+        _validate_collection("a" * 65)
+
+
+def test_add_doc_invalid_collection(txt_file, tmp_db):
+    with pytest.raises(ValueError):
+        add_doc(txt_file, collection="../../etc", db_path=tmp_db)
+
+
+def test_bulk_import_invalid_collection(tmp_path, tmp_db):
+    src = tmp_path / "docs"
+    src.mkdir()
+    (src / "a.txt").write_text("content")
+    with pytest.raises(ValueError):
+        bulk_import(str(src), collection="../bad", db_path=tmp_db)
+
+
+# ---------------------------------------------------------------------------
+# Production-level: FTS5 quoting helper
+# ---------------------------------------------------------------------------
+
+def test_fts_quote_plain():
+    assert _fts_quote("hello") == '"hello"'
+
+
+def test_fts_quote_escapes_double_quotes():
+    assert _fts_quote('say "hi"') == '"say ""hi"""'
+
+
+def test_search_with_quoted_collection(txt_file, tmp_db, tmp_path):
+    """Search with a collection name that contains FTS5 special chars falls back safely."""
+    os.environ["DOC_ARCHIVE_STORE"] = str(tmp_path / "store")
+    add_doc(txt_file, collection="default", db_path=tmp_db)
+    # A collection name with FTS5 special chars should not crash
+    results = search("Hello", collection='col"injection', db_path=tmp_db)
+    assert isinstance(results, list)
+
+
+# ---------------------------------------------------------------------------
+# Production-level: get_db with no parent directory
+# ---------------------------------------------------------------------------
+
+def test_get_db_no_parent_dir(tmp_path):
+    """get_db should work when db path has no parent (bare filename in cwd)."""
+    import os
+    old_cwd = os.getcwd()
+    try:
+        os.chdir(tmp_path)
+        conn = get_db("bare.db")
+        assert conn is not None
+        conn.close()
+    finally:
+        os.chdir(old_cwd)
+
+
+# ---------------------------------------------------------------------------
+# Production-level: add_doc returns full content (no truncation)
+# ---------------------------------------------------------------------------
+
+def test_add_doc_content_not_truncated(tmp_db, tmp_path):
+    """add_doc must return the full extracted content, not a 200-char truncation."""
+    os.environ["DOC_ARCHIVE_STORE"] = str(tmp_path / "store")
+    long_text = "word " * 100  # 500 chars
+    f = tmp_path / "long.txt"
+    f.write_text(long_text)
+    doc = add_doc(str(f), db_path=tmp_db)
+    assert len(doc.content) > 200
+
+
+# ---------------------------------------------------------------------------
+# Production-level: timestamps use UTC (no deprecation)
+# ---------------------------------------------------------------------------
+
+def test_timestamp_format(txt_file, tmp_db, tmp_path):
+    """Timestamps must end with 'Z' and be ISO 8601."""
+    os.environ["DOC_ARCHIVE_STORE"] = str(tmp_path / "store")
+    doc = add_doc(txt_file, db_path=tmp_db)
+    assert doc.created_at.endswith("Z")
+    assert "T" in doc.created_at
+    assert "+" not in doc.created_at
+
