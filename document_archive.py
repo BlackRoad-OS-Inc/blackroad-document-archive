@@ -52,7 +52,7 @@ class Document:
 
 
 def _now() -> str:
-    return datetime.datetime.utcnow().isoformat() + "Z"
+    return datetime.datetime.now(datetime.timezone.utc).isoformat().replace("+00:00", "Z")
 
 
 def _doc_id(path: str) -> str:
@@ -72,7 +72,9 @@ def _word_count(text: str) -> int:
 # ---------------------------------------------------------------------------
 
 def get_db(path: str = DB_PATH) -> sqlite3.Connection:
-    os.makedirs(os.path.dirname(path), exist_ok=True)
+    parent = os.path.dirname(path)
+    if parent:
+        os.makedirs(parent, exist_ok=True)
     conn = sqlite3.connect(path)
     conn.row_factory = sqlite3.Row
     _init_db(conn)
@@ -143,6 +145,24 @@ def _init_db(conn: sqlite3.Connection) -> None:
         CREATE INDEX IF NOT EXISTS idx_docs_sha256 ON documents(sha256);
     """)
     conn.commit()
+
+
+_SAFE_COLLECTION_RE = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9_\-\.]{0,63}$")
+
+
+def _validate_collection(name: str) -> None:
+    """Raise ValueError if collection name is not safe for use as a path component."""
+    if not _SAFE_COLLECTION_RE.match(name):
+        raise ValueError(
+            f"Invalid collection name {name!r}. "
+            "The first character must be a letter or digit; subsequent characters may be "
+            "letters, digits, hyphens, underscores, or dots (1–64 chars total)."
+        )
+
+
+def _fts_quote(value: str) -> str:
+    """Wrap a bare string for safe inclusion in an FTS5 MATCH query."""
+    return '"' + value.replace('"', '""') + '"'
 
 
 # ---------------------------------------------------------------------------
@@ -252,6 +272,8 @@ def add_doc(
     if not src.exists():
         raise FileNotFoundError(f"File not found: {path}")
 
+    _validate_collection(collection)
+
     fmt = src.suffix.lstrip(".").lower() or "txt"
     data = src.read_bytes()
     sha = _sha256(data)
@@ -293,7 +315,7 @@ def add_doc(
     conn.commit()
 
     return Document(
-        id=doc_id, title=doc_title, content=text[:200],  # truncate for display
+        id=doc_id, title=doc_title, content=text,
         file_path=str(store_path), format=fmt,
         size_bytes=size, sha256=sha, tags=",".join(tags or []),
         collection=collection, created_at=now, updated_at=now,
@@ -329,7 +351,7 @@ def search(
     # Build FTS query
     fts_query = query
     if collection:
-        fts_query += f' collection:{collection}'
+        fts_query += f" collection:{_fts_quote(collection)}"
 
     try:
         rows = conn.execute("""
@@ -463,6 +485,8 @@ def bulk_import(
     src_dir = Path(directory)
     if not src_dir.exists():
         raise FileNotFoundError(f"Directory not found: {directory}")
+
+    _validate_collection(collection)
 
     pattern = "**/*" if recursive else "*"
     imported: List[Document] = []
