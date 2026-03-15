@@ -1,57 +1,41 @@
+<div align="center">
+
+<img src="https://images.blackroad.io/pixel-art/road-logo.png" alt="BlackRoad OS" width="80" />
+
 # blackroad-document-archive
 
-Full-text document archive with SQLite FTS5 search. Supports Markdown, TXT, HTML, JSON, XML, CSV, PDF.
+**Full-text document archive: FTS5 search, multi-format support (md/txt/html/pdf/json), ZIP export. SQLite.**
 
-## Features
+[![BlackRoad OS](https://img.shields.io/badge/BlackRoad_OS-Pave_Tomorrow-FF2255?style=for-the-badge&labelColor=000000)](https://blackroad.io)
+[![License](https://img.shields.io/badge/License-Proprietary-FF6B2B?style=for-the-badge&labelColor=000000)](./LICENSE)
+[![Edge AI](https://img.shields.io/badge/Edge_AI-52_TOPS-00D4FF?style=for-the-badge&labelColor=000000)](https://github.com/BlackRoad-OS-Inc)
 
-- Import documents (md, txt, html, json, xml, csv, pdf)
-- Full-text search via SQLite FTS5 with BM25 ranking
-- Automatic text extraction per format
-- Smart title inference from content
-- Collections for document organization
-- Bulk directory import (recursive)
-- Export collections as ZIP archives
-- SHA-256 deduplication
-- SQLite persistence in `~/.blackroad/document_archive.db`
+</div>
 
-## Usage
+<div align="center">
+<sub>Part of the <a href="https://blackroad.io">BlackRoad OS</a> ecosystem — sovereign edge AI infrastructure</sub>
+</div>
 
-```bash
-# Add a document
-python document_archive.py add README.md --collection "projects" --tags "docs"
+---
 
-# Bulk import directory
-python document_archive.py import ./docs --collection "archive"
+## Overview
 
-# Full-text search
-python document_archive.py search "machine learning"
+Full-text document archive: FTS5 search, multi-format support (md/txt/html/pdf/json), ZIP export. SQLite.
 
-# Search within collection
-python document_archive.py search "deployment" --collection "ops"
+## License
 
-# List documents
-python document_archive.py list --collection "projects"
+**Proprietary** — Copyright © 2024–2026 [BlackRoad OS, Inc.](https://blackroad.io) All rights reserved.
 
-# Extract text
-python document_archive.py text <doc-id>
+Founder & CEO: **Alexa Louise Amundson** · Delaware C-Corp
 
-# Export collection as ZIP
-python document_archive.py export projects --output projects.zip
+See [LICENSE](./LICENSE) for full terms.
 
-# Statistics
-python document_archive.py stats
-```
+---
 
-## Testing
+<div align="center">
 
-```bash
-pip install pytest
-pytest tests/ -v
-```
+**BlackRoad OS — Pave Tomorrow.**
 
-## Architecture
+[blackroad.io](https://blackroad.io) · [GitHub](https://github.com/BlackRoad-OS-Inc) · [Brand](https://brand.blackroad.io)
 
-- **`document_archive.py`** — Core library + CLI (350+ lines)
-- **SQLite tables**: `documents`, `documents_fts` (FTS5), `collections`, `doc_versions`
-- **FTS5 triggers** keep search index in sync automatically
-- **No heavy dependencies** — PDF extraction optional via `pdfminer.six`
+</div>
