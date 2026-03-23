@@ -1,5 +1,13 @@
 # blackroad-document-archive
 
+> BlackRoad Document Archive — full-text document search with FTS5, multi-format support, and ZIP export
+
+Part of the [BlackRoad OS](https://blackroad.io) ecosystem — [BlackRoad-OS-Inc](https://github.com/BlackRoad-OS-Inc)
+
+---
+
+# blackroad-document-archive
+
 BlackRoad Document Archive — full-text document search with FTS5, multi-format support, and ZIP export
 
 **BlackRoad-OS-Inc** — Corporate root — all IP and governance
